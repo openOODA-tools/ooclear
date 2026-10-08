@@ -1,13 +1,28 @@
-// # ooclear Root Anchor
+// # ooclear Root Verification Anchor
 //
-// Logline: Top-level anchor re-exporting options, core logic, render, and ipc subsystems.
+// Logline: Holistic verification anchor certifying core, render, and ipc subsystems.
 //
-// Setup: Pure shim re-exporting all ooclear subsystem anchors.
+// Setup: Demands all subsystem anchors to execute comprehensive self-tests.
 //
 // Beats:
-//   1. Re-export options parsing subsystem.
-//   2. Re-export core ooclear execution engine.
-//   3. Re-export render formatting subsystem.
-//   4. Re-export Model Context Protocol (MCP) IPC subsystem.
+//   1. Assert core terminal profile and sequence resolution subsystem.
+//   2. Assert terminal rendering and JSON telemetry subsystem.
+//   3. Assert IPC options parser and MCP JSON-RPC protocol subsystem.
+//   4. Deliver certified holistic system health.
 
-import "main.oo";
+import "core/anchor.oo";
+import "render/anchor.oo";
+import "ipc/anchor.oo";
+
+pub fn verify_all_subsystems() -> Bool {
+    if !verify_core_subsystem() {
+        return false;
+    }
+    if !verify_render_subsystem() {
+        return false;
+    }
+    if !verify_ipc_subsystem() {
+        return false;
+    }
+    return true;
+}

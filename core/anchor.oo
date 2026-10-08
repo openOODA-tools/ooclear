@@ -1,0 +1,44 @@
+// # ooclear Core Verification Anchor
+//
+// Logline: Verification anchor certifying terminal profile ingestion, sequence resolution, and demo suites.
+//
+// Setup: Validates core types and profile generators against deterministic assertions.
+//
+// Beats:
+//   1. Assert terminal profile generation for standard terminals.
+//   2. Assert clear action resolution for screen and scrollback.
+//   3. Assert fallback behavior on dumb terminals.
+//   4. Validate deterministic audit fixture generation.
+
+import "core/clear_types.oo";
+import "core/clear_profile.oo";
+import "core/clear_demo.oo";
+
+pub fn verify_core_subsystem() -> Bool {
+    let xterm_prof: TermProfile = get_terminal_profile("xterm-256color");
+    if !xterm_prof.supports_ansi || !xterm_prof.supports_scrollback {
+        return false;
+    }
+
+    let dumb_prof: TermProfile = get_terminal_profile("dumb");
+    if dumb_prof.supports_ansi || dumb_prof.supports_scrollback {
+        return false;
+    }
+
+    let act: ClearAction = resolve_clear_action(xterm_prof, false, false, false, false);
+    if act.mode != "SCREEN_AND_SCROLLBACK" {
+        return false;
+    }
+
+    let no_sb_act: ClearAction = resolve_clear_action(xterm_prof, true, false, false, false);
+    if no_sb_act.mode != "SCREEN_ONLY" {
+        return false;
+    }
+
+    let audit: TermAudit = build_demo_audit();
+    if audit.recommended_mode != "SCREEN_AND_SCROLLBACK" {
+        return false;
+    }
+
+    return true;
+}

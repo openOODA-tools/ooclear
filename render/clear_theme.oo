@@ -1,0 +1,66 @@
+// # ooclear Terminal Rendering Subsystem
+//
+// Logline: Formats terminal action summaries, capability audit tables, and JSON telemetry.
+//
+// Setup: Generates structured, high-legibility terminal representations for humans and automation.
+//
+// Beats:
+//   1. Format clear action execution metrics and escape sequence information.
+//   2. Format terminal environment audit findings.
+//   3. Render multi-terminal capability matrix table.
+//   4. Generate structured JSON telemetry.
+
+import "core/clear_types.oo";
+
+pub fn render_action_summary(act: ClearAction, term: String) -> String {
+    let mut out: String = "=== ooclear Buffer Purge: " + term + " ===\n";
+    out = out + "Mode:        " + act.mode + "\n";
+    out = out + "Sequence:    " + act.sequence_name + " (" + act.display_sequence + ")\n";
+    out = out + "Bytes Sent:  " + to_string(act.bytes_count) + "\n";
+    out = out + "Description: " + act.description + "\n";
+    return out;
+}
+
+pub fn render_audit_report(audit: TermAudit) -> String {
+    let mut out: String = "=== Terminal Environment Audit ===\n";
+    out = out + "TERM Variable:      " + (if chars_len(audit.term_env) > 0 { audit.term_env } else { "[unset]" }) + "\n";
+    out = out + "COLORTERM Variable: " + (if chars_len(audit.colorterm_env) > 0 { audit.colorterm_env } else { "[unset]" }) + "\n";
+    out = out + "Detected Profile:   " + audit.detected_type + "\n";
+    out = out + "ANSI Escape Support: YES\n";
+    let sb_str: String = if audit.supports_scrollback { "YES (ED3 \\x1b[3J)" } else { "NO" };
+    out = out + "Scrollback Purge:   " + sb_str + "\n";
+    let color_str: String = if audit.supports_color { "YES (Truecolor / 256)" } else { "MONOCHROME" };
+    out = out + "Color Support:      " + color_str + "\n";
+    out = out + "Recommended Mode:   " + audit.recommended_mode + "\n";
+    out = out + "Status:             " + audit.summary + "\n";
+    return out;
+}
+
+pub fn render_sequences_table(profiles: List[TermProfile]) -> String {
+    let mut out: String = "=== Terminal Sequence Matrix ===\n";
+    out = out + "TERM             ANSI  SCROLLBACK  RESET  HOME   CLEAR  PURGE\n";
+    out = out + "-------------------------------------------------------------\n";
+    let n: Int = list_len(profiles);
+    let mut i: Int = 0;
+    while i < n {
+        let p: TermProfile = list_get(profiles, i);
+        let ansi_s: String = if p.supports_ansi { "YES " } else { "NO  " };
+        let sb_s: String = if p.supports_scrollback { "YES       " } else { "NO        " };
+        let rst_s: String = if p.supports_reset { "YES  " } else { "NO   " };
+        out = out + p.term_name + "  " + ansi_s + "  " + sb_s + "  " + rst_s + "\n";
+        i = i + 1;
+    }
+    return out;
+}
+
+pub fn render_json_telemetry(act: ClearAction, audit: TermAudit) -> String {
+    let mut j: String = "{\"tool\":\"ooclear\",\"version\":\"0.2.0\",";
+    j = j + "\"mode\":\"" + act.mode + "\",";
+    j = j + "\"sequence\":\"" + act.sequence_name + "\",";
+    j = j + "\"display_sequence\":\"" + act.display_sequence + "\",";
+    j = j + "\"bytes_sent\":" + to_string(act.bytes_count) + ",";
+    j = j + "\"term\":\"" + audit.detected_type + "\",";
+    let sb_val: String = if audit.supports_scrollback { "true" } else { "false" };
+    j = j + "\"scrollback_support\":" + sb_val + "}\n";
+    return j;
+}

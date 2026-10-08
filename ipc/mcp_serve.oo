@@ -1,0 +1,113 @@
+// # Model Context Protocol (MCP) Server for ooclear
+//
+// Logline: JSON-RPC 2.0 stdio server providing screen clearing, scrollback purge, and ANSI capability audits.
+//
+// Setup: Demands FsReadCap and EnvCap to service streaming agent tool invocations over standard input.
+//
+// Beats:
+//   1. Handle MCP initialize handshake with server metadata.
+//   2. Expose tools/list catalogue with five sovereign terminal buffer tools.
+//   3. Dispatch tools/call for clear_screen, scrollback, reset, sequences, and audit.
+//   4. Deliver streaming JSON-RPC responses over standard output.
+
+import "core/clear_types.oo";
+import "core/clear_profile.oo";
+import "render/clear_theme.oo";
+import "ipc/json_field.oo";
+
+pub fn render_mcp_init(id: String) -> String {
+    return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"ooclear\",\"version\":\"0.2.0\"}}}\n";
+}
+
+pub fn render_mcp_tools_list(id: String) -> String {
+    let mut out: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"tools\":[";
+    out = out + "{\"name\":\"clear_screen\",\"description\":\"Generate escape sequence to clear visible screen and home cursor.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"term\":{\"type\":\"string\"}},\"required\":[]}},";
+    out = out + "{\"name\":\"clear_scrollback\",\"description\":\"Generate escape sequence to clear visible screen and purge scrollback buffer.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"term\":{\"type\":\"string\"}},\"required\":[]}},";
+    out = out + "{\"name\":\"clear_reset\",\"description\":\"Generate hard terminal hardware reset (RIS) escape sequence.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"term\":{\"type\":\"string\"}},\"required\":[]}},";
+    out = out + "{\"name\":\"clear_sequences\",\"description\":\"List ANSI control sequence catalog for specified terminal profile.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"term\":{\"type\":\"string\"}},\"required\":[]}},";
+    out = out + "{\"name\":\"clear_audit\",\"description\":\"Audit host terminal environment and report supported buffer capabilities.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"term\":{\"type\":\"string\"}},\"required\":[]}}";
+    out = out + "]}}\n";
+    return out;
+}
+
+pub fn handle_mcp_call(
+    env: &EnvCap,
+    id: String,
+    tool_name: String,
+    req: String
+) -> String {
+    let term_in: String = extract_json_str(req, "term");
+    let prof: TermProfile = get_terminal_profile(term_in);
+
+    if tool_name == "clear_screen" {
+        let act: ClearAction = resolve_clear_action(prof, true, false, false, false);
+        let text: String = render_action_summary(act, prof.term_name);
+        return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape(text) + "\"}]}}\n";
+    }
+
+    if tool_name == "clear_scrollback" {
+        let act: ClearAction = resolve_clear_action(prof, false, false, false, false);
+        let text: String = render_action_summary(act, prof.term_name);
+        return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape(text) + "\"}]}}\n";
+    }
+
+    if tool_name == "clear_reset" {
+        let act: ClearAction = resolve_clear_action(prof, false, false, true, false);
+        let text: String = render_action_summary(act, prof.term_name);
+        return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape(text) + "\"}]}}\n";
+    }
+
+    if tool_name == "clear_sequences" {
+        let mut list: List[TermProfile] = list_new();
+        list = list_push(list, prof);
+        let text: String = render_sequences_table(list);
+        return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape(text) + "\"}]}}\n";
+    }
+
+    if tool_name == "clear_audit" {
+        let audit: TermAudit = audit_terminal_env(env, term_in);
+        let text: String = render_audit_report(audit);
+        return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape(text) + "\"}]}}\n";
+    }
+
+    return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"error\":{\"code\":-32601,\"message\":\"Method not found\"}}\n";
+}
+
+pub fn handle_mcp_message(env: &EnvCap, req: String) -> String {
+    let id_str: String = extract_json_str(req, "id");
+    let id: String = if chars_len(id_str) > 0 { "\"" + id_str + "\"" } else { "1" };
+    let method: String = extract_json_str(req, "method");
+
+    if method == "initialize" {
+        return render_mcp_init(id);
+    }
+    if method == "tools/list" {
+        return render_mcp_tools_list(id);
+    }
+    if method == "tools/call" {
+        let tool_name: String = extract_json_str(req, "name");
+        return handle_mcp_call(env, id, tool_name, req);
+    }
+    return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"error\":{\"code\":-32601,\"message\":\"Method not found\"}}\n";
+}
+
+pub fn run_mcp_server(fs: &FsReadCap, env: &EnvCap) {
+    let mut running: Bool = true;
+    while running {
+        let line_res: Result[String, String] = oo_read_stdin_chunk(fs, 8192);
+        if !line_res.is_ok() {
+            running = false;
+        } else {
+            let line: String = match line_res { Ok(s) => s, Err(_) => "" };
+            let trimmed: String = str_trim(line);
+            if chars_len(trimmed) == 0 {
+                running = false;
+            } else {
+                let resp: String = handle_mcp_message(env, trimmed);
+                if chars_len(resp) > 0 {
+                    print(resp);
+                }
+            }
+        }
+    }
+}

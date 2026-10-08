@@ -1,0 +1,86 @@
+// # ooclear Command Line Options Parser
+//
+// Logline: Parses command-line flags, terminal type overrides, and buffer purge specifications.
+//
+// Setup: Decodes standard POSIX and extended terminal options into typed records.
+//
+// Beats:
+//   1. Define ClearCliOpts configuration structure.
+//   2. Parse legacy flags -x, -s, -r, and -T.
+//   3. Handle audit, demo, JSON, and MCP server activation flags.
+//   4. Supply initialized default options record.
+
+pub type ClearCliOpts = struct {
+    keep_scrollback: Bool,
+    scrollback_only: Bool,
+    hard_reset: Bool,
+    soft_reset: Bool,
+    term_override: String,
+    print_sequence: Bool,
+    audit: Bool,
+    demo: Bool,
+    json: Bool,
+    mcp: Bool,
+    help: Bool,
+    version: Bool
+};
+
+pub fn make_default_clear_opts() -> ClearCliOpts {
+    return ClearCliOpts {
+        keep_scrollback: false,
+        scrollback_only: false,
+        hard_reset: false,
+        soft_reset: false,
+        term_override: "",
+        print_sequence: false,
+        audit: false,
+        demo: false,
+        json: false,
+        mcp: false,
+        help: false,
+        version: false
+    };
+}
+
+pub fn parse_cli_args(args: List[String]) -> ClearCliOpts {
+    let mut opts: ClearCliOpts = make_default_clear_opts();
+    let num_args: Int = list_len(args);
+    let mut i: Int = 0;
+
+    while i < num_args {
+        let arg: String = list_get(args, i);
+
+        if arg == "-h" || arg == "--help" {
+            opts.help = true;
+        } else if arg == "-V" || arg == "--version" {
+            opts.version = true;
+        } else if arg == "--mcp" {
+            opts.mcp = true;
+        } else if arg == "--demo" {
+            opts.demo = true;
+        } else if arg == "--json" {
+            opts.json = true;
+        } else if arg == "-x" {
+            opts.keep_scrollback = true;
+        } else if arg == "-s" || arg == "--scrollback-only" {
+            opts.scrollback_only = true;
+        } else if arg == "-r" || arg == "--reset" {
+            opts.hard_reset = true;
+        } else if arg == "--soft-reset" {
+            opts.soft_reset = true;
+        } else if arg == "--raw" || arg == "--sequence" {
+            opts.print_sequence = true;
+        } else if arg == "--audit" {
+            opts.audit = true;
+        } else if str_starts_with(arg, "--term=") {
+            opts.term_override = str_slice(arg, 7, chars_len(arg));
+        } else if arg == "-T" && i + 1 < num_args {
+            i = i + 1;
+            opts.term_override = list_get(args, i);
+        }
+
+        i = i + 1;
+    }
+
+    return opts;
+}

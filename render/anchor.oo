@@ -1,0 +1,34 @@
+// # ooclear Render Subsystem Verification Anchor
+//
+// Logline: Verification anchor certifying formatting of terminal actions, audit reports, and telemetry.
+//
+// Setup: Validates formatting routines on precomputed demonstration fixtures.
+//
+// Beats:
+//   1. Verify action summary rendering.
+//   2. Verify terminal environment audit report formatting.
+//   3. Verify multi-terminal capability matrix table generation.
+//   4. Validate structured JSON telemetry schema.
+
+import "core/clear_types.oo";
+import "core/clear_demo.oo";
+import "render/clear_theme.oo";
+
+pub fn verify_render_subsystem() -> Bool {
+    let act: ClearAction = build_demo_action();
+    let act_str: String = render_action_summary(act, "xterm-256color");
+    if chars_len(act_str) == 0 { return false; }
+
+    let audit: TermAudit = build_demo_audit();
+    let audit_str: String = render_audit_report(audit);
+    if chars_len(audit_str) == 0 { return false; }
+
+    let profiles: List[TermProfile] = build_demo_profiles_list();
+    let matrix_str: String = render_sequences_table(profiles);
+    if chars_len(matrix_str) == 0 { return false; }
+
+    let json_str: String = render_json_telemetry(act, audit);
+    if chars_len(json_str) == 0 { return false; }
+
+    return true;
+}

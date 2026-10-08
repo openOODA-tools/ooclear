@@ -1,52 +1,122 @@
 // # ooclear Main Entry Point
 //
-// Logline: High-performance screen clearing and scrollback purge with VT100/ANSI compliance.
+// Logline: Sovereign terminal buffer purger with ANSI scrollback clearing, reset engine, and MCP surface.
 //
-// Setup: Demands explicit capability tokens and standard argument list.
+// Setup: Demands explicit FsReadCap, ProcessCap, and EnvCap tokens with bounded authority.
 //
 // Beats:
-//   1. Parse command-line options and dispatch --help, --version, or --mcp.
-//   2. Execute capability-bounded ooclear operations.
-//   3. Format and output structured results to standard output.
+//   1. Parse command-line options and dispatch help, version, and demo handlers.
+//   2. Run Model Context Protocol (MCP) streaming JSON-RPC server on --mcp.
+//   3. Inspect terminal capabilities and active TERM profile under EnvCap.
+//   4. Emit optimized ANSI escape sequence or render structured telemetry.
 
-fn render_help() -> String {
-    return "ooclear 0.1.0 (openOODA sovereign shell & terminal)\n"
-        + "usage: ooclear [options] [ARGUMENTS]...\n\n"
-        + "High-performance screen clearing and scrollback purge with VT100/ANSI compliance.\n\n"
+import "core/clear_types.oo";
+import "core/clear_profile.oo";
+import "core/clear_demo.oo";
+import "render/clear_theme.oo";
+import "ipc/clear_opts.oo";
+import "ipc/mcp_serve.oo";
+import "anchor.oo";
+
+pub fn render_help() -> String {
+    return "ooclear 0.2.0 (openOODA sovereign terminal & buffer)\n"
+        + "usage: ooclear [options]\n\n"
+        + "Clear the terminal screen and scrollback buffer.\n\n"
         + "Options:\n"
-        + "  -h, --help           display this help and exit\n"
-        + "  -v, --version        output version information and exit\n"
-        + "      --json           output formatted as JSON Lines\n"
-        + "      --color <WHEN>   colorize output: auto, always, never [default: auto]\n"
-        + "      --theme <NAME>   override active oote palette\n"
-        + "      --mcp            run as Model Context Protocol stdio server\n";
+        + "  -x                  do not clear scrollback buffer\n"
+        + "  -s, --scrollback    clear scrollback buffer only (keep visible screen)\n"
+        + "  -r, --reset         perform terminal hardware reset (RIS)\n"
+        + "      --soft-reset    perform soft terminal reset (DECSTR)\n"
+        + "  -T, --term=NAME     override terminal type (default from $TERM)\n"
+        + "      --raw           print escape sequences without executing clear\n"
+        + "      --audit         audit terminal capabilities and active profile\n"
+        + "      --demo          run demonstration scenarios with synthetic profiles\n"
+        + "      --json          output formatted as JSON telemetry\n"
+        + "  -h, --help          display this help and exit\n"
+        + "  -V, --version       output version information and exit\n"
+        + "      --mcp           run as Model Context Protocol stdio server\n";
 }
 
-fn render_version() -> String {
-    return "ooclear 0.1.0 (openOODA sovereign shell & terminal)\n";
+pub fn render_version() -> String {
+    return "ooclear 0.2.0 (openOODA sovereign system & monitor)\n";
 }
 
-fn main(args: List[String]) -> Int {
-    let num_args: Int = list_len(args);
-    let mut i: Int = 0;
+fn handle_demo(opts: ClearCliOpts) -> Int {
+    let act: ClearAction = build_demo_action();
+    let audit: TermAudit = build_demo_audit();
 
-    while i < num_args {
-        let arg: String = list_get(args, i);
-        if arg == "-h" || arg == "--help" {
-            print(render_help());
-            return 0;
-        }
-        if arg == "-v" || arg == "--version" {
-            print(render_version());
-            return 0;
-        }
-        if arg == "--mcp" {
-            print("{\"jsonrpc\":\"2.0\",\"result\":{\"status\":\"ready\",\"tool\":\"ooclear\"}}\n");
-            return 0;
-        }
-        i = i + 1;
+    if opts.json {
+        print(render_json_telemetry(act, audit));
+        return 0;
+    }
+    if opts.audit {
+        print(render_audit_report(audit));
+        return 0;
     }
 
-    print("ooclear: sovereign capability-bounded utility ready\n");
+    let profiles: List[TermProfile] = build_demo_profiles_list();
+    print(render_action_summary(act, "xterm-256color") + "\n");
+    print(render_sequences_table(profiles));
     return 0;
+}
+
+pub fn main(
+    fs: &FsReadCap,
+    _proc_cap: &ProcessCap,
+    env: &EnvCap,
+    args: List[String]
+) -> Result[Int, String] {
+    let opts: ClearCliOpts = parse_cli_args(args);
+
+    if opts.help {
+        print(render_help());
+        return Ok(0);
+    }
+    if opts.version {
+        print(render_version());
+        return Ok(0);
+    }
+    if opts.mcp {
+        run_mcp_server(fs, env);
+        return Ok(0);
+    }
+    if opts.demo {
+        let code: Int = handle_demo(opts);
+        return Ok(code);
+    }
+
+    let term_in: String = if chars_len(opts.term_override) > 0 {
+        opts.term_override
+    } else {
+        env_lookup(env, "TERM")
+    };
+
+    let prof: TermProfile = get_terminal_profile(term_in);
+    let act: ClearAction = resolve_clear_action(
+        prof, opts.keep_scrollback, opts.scrollback_only, opts.hard_reset, opts.soft_reset
+    );
+
+    if opts.audit {
+        let audit: TermAudit = audit_terminal_env(env, opts.term_override);
+        if opts.json {
+            print(render_json_telemetry(act, audit));
+        } else {
+            print(render_audit_report(audit));
+        }
+        return Ok(0);
+    }
+
+    if opts.json {
+        let audit: TermAudit = audit_terminal_env(env, opts.term_override);
+        print(render_json_telemetry(act, audit));
+        return Ok(0);
+    }
+
+    if opts.print_sequence {
+        print(act.display_sequence + "\n");
+        return Ok(0);
+    }
+
+    print(act.raw_sequence);
+    return Ok(0);
 }

@@ -1,0 +1,44 @@
+// # ooclear Demonstration and Test Fixtures
+//
+// Logline: Generates simulated terminal profiles, buffer clear actions, and audit fixtures.
+//
+// Setup: Supplies deterministic test fixtures for verification and headless test harnesses.
+//
+// Beats:
+//   1. Construct synthetic xterm-256color profile.
+//   2. Produce demonstration screen and scrollback clear action.
+//   3. Construct multi-terminal profile matrix for audit comparisons.
+//   4. Supply deterministic audit report for headless testing.
+
+import "core/clear_types.oo";
+import "core/clear_profile.oo";
+
+pub fn build_demo_profile() -> TermProfile {
+    return get_terminal_profile("xterm-256color");
+}
+
+pub fn build_demo_action() -> ClearAction {
+    let p: TermProfile = build_demo_profile();
+    return resolve_clear_action(p, false, false, false, false);
+}
+
+pub fn build_demo_audit() -> TermAudit {
+    return make_term_audit(
+        "xterm-256color",
+        "truecolor",
+        "xterm-256color",
+        true,
+        true,
+        "SCREEN_AND_SCROLLBACK",
+        "Terminal 'xterm-256color' (ANSI: yes, Scrollback: yes)"
+    );
+}
+
+pub fn build_demo_profiles_list() -> List[TermProfile] {
+    let mut list: List[TermProfile] = list_new();
+    list = list_push(list, get_terminal_profile("xterm-256color"));
+    list = list_push(list, get_terminal_profile("vt100"));
+    list = list_push(list, get_terminal_profile("linux"));
+    list = list_push(list, get_terminal_profile("dumb"));
+    return list;
+}

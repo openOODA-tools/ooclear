@@ -1,0 +1,101 @@
+// # ooclear Terminal Buffer and Sequence Types
+//
+// Logline: Data structures for terminal escape profiles, buffer clear actions, and environment audits.
+//
+// Setup: Encapsulates VT100/ANSI control sequence specifications and terminal capabilities.
+//
+// Beats:
+//   1. Declare TermProfile record defining terminal capabilities.
+//   2. Declare ClearAction record representing an escape dispatch action.
+//   3. Declare TermAudit record evaluating environment state.
+//   4. Supply constructors for typed sequence processing.
+
+pub type TermProfile = struct {
+    term_name: String,
+    supports_ansi: Bool,
+    supports_scrollback: Bool,
+    supports_reset: Bool,
+    cursor_home: String,
+    clear_screen: String,
+    purge_scrollback: String,
+    reset_state: String
+};
+
+pub fn make_term_profile(
+    term_name: String,
+    supports_ansi: Bool,
+    supports_scrollback: Bool,
+    supports_reset: Bool,
+    cursor_home: String,
+    clear_screen: String,
+    purge_scrollback: String,
+    reset_state: String
+) -> TermProfile {
+    return TermProfile {
+        term_name: term_name,
+        supports_ansi: supports_ansi,
+        supports_scrollback: supports_scrollback,
+        supports_reset: supports_reset,
+        cursor_home: cursor_home,
+        clear_screen: clear_screen,
+        purge_scrollback: purge_scrollback,
+        reset_state: reset_state
+    };
+}
+
+pub type ClearAction = struct {
+    mode: String,
+    sequence_name: String,
+    raw_sequence: String,
+    display_sequence: String,
+    bytes_count: Int,
+    description: String
+};
+
+pub fn make_clear_action(
+    mode: String,
+    sequence_name: String,
+    raw_sequence: String,
+    display_sequence: String,
+    bytes_count: Int,
+    description: String
+) -> ClearAction {
+    return ClearAction {
+        mode: mode,
+        sequence_name: sequence_name,
+        raw_sequence: raw_sequence,
+        display_sequence: display_sequence,
+        bytes_count: bytes_count,
+        description: description
+    };
+}
+
+pub type TermAudit = struct {
+    term_env: String,
+    colorterm_env: String,
+    detected_type: String,
+    supports_scrollback: Bool,
+    supports_color: Bool,
+    recommended_mode: String,
+    summary: String
+};
+
+pub fn make_term_audit(
+    term_env: String,
+    colorterm_env: String,
+    detected_type: String,
+    supports_scrollback: Bool,
+    supports_color: Bool,
+    recommended_mode: String,
+    summary: String
+) -> TermAudit {
+    return TermAudit {
+        term_env: term_env,
+        colorterm_env: colorterm_env,
+        detected_type: detected_type,
+        supports_scrollback: supports_scrollback,
+        supports_color: supports_color,
+        recommended_mode: recommended_mode,
+        summary: summary
+    };
+}

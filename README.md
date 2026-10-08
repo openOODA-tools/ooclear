@@ -5,7 +5,7 @@
 ```
 ================================================================================
                                 ooclear
-               Sovereign openOODA BUFFER PURGER
+               Sovereign openOODA TERMINAL BUFFER PURGER
 ================================================================================
 ```
 
@@ -54,26 +54,48 @@ ooclear-uninstall
 ## 2. CLI Usage
 
 ```
-usage: ooclear [options] [ARGUMENTS]...
+ooclear 0.2.0 (openOODA sovereign terminal & buffer)
+usage: ooclear [options]
 
-High-performance screen clearing and scrollback purge with VT100/ANSI compliance.
+Clear the terminal screen and scrollback buffer.
 
 Options:
-  -h, --help           display this help and exit
-  -v, --version        output version information and exit
-      --json           output formatted as JSON Lines
-      --color <WHEN>   colorize output: auto, always, never [default: auto]
-      --theme <NAME>   override active oote palette
-      --mcp            run as Model Context Protocol stdio server
+  -x                  do not clear scrollback buffer
+  -s, --scrollback    clear scrollback buffer only (keep visible screen)
+  -r, --reset         perform terminal hardware reset (RIS)
+      --soft-reset    perform soft terminal reset (DECSTR)
+  -T, --term=NAME     override terminal type (default from $TERM)
+      --raw           print escape sequences without executing clear
+      --audit         audit terminal capabilities and active profile
+      --demo          run demonstration scenarios with synthetic profiles
+      --json          output formatted as JSON telemetry
+  -h, --help          display this help and exit
+  -V, --version       output version information and exit
+      --mcp           run as Model Context Protocol stdio server
 ```
 
 ---
 
-## 3. Theming Integration (`oote`)
+## 3. High-Precision Terminal Reset & Purge
 
-`ooclear` synchronizes visual styles and status colors with [oote](https://github.com/openOODA-tools/oote):
-* **Configuration:** Reads active palette from `~/.openooda/theme.oot`.
-* **Environment Overrides:** Respects `$OODA_THEME` and `$NO_COLOR`.
+`ooclear` evaluates host `$TERM` and `$COLORTERM` capabilities to dispatch mathematically precise control sequences:
+
+```bash
+# Standard screen clear and scrollback purge (ED2 + ED3 + CUP):
+ooclear
+
+# Retain scrollback buffer (ED2 + CUP, matching legacy clear -x):
+ooclear -x
+
+# Purge scrollback only (ED3):
+ooclear -s
+
+# Full hardware terminal reset (RIS \x1bc):
+ooclear -r
+
+# Inspect escape sequence for another terminal profile:
+ooclear --raw -T vt100
+```
 
 ---
 
@@ -85,11 +107,18 @@ When invoked with `--mcp`, `ooclear` runs a JSON-RPC 2.0 stdio server providing 
 ooclear --mcp
 ```
 
+### Registered Tools
+* **`clear_screen`**: Generate escape sequence to clear visible screen and home cursor.
+* **`clear_scrollback`**: Generate escape sequence to clear visible screen and purge scrollback buffer.
+* **`clear_reset`**: Generate hard terminal hardware reset (RIS) escape sequence.
+* **`clear_sequences`**: List ANSI control sequence catalog for specified terminal profile.
+* **`clear_audit`**: Audit host terminal environment and report supported buffer capabilities.
+
 ---
 
 ## 5. Security & Zero Ambient Authority
 
-* **Pure Capability Bounded:** Operates strictly with explicit tokens (&TermCap, &EnvCap, &ProcCap, &McpCap). Physical absence of ambient disk/net leakage.
+* **Pure Capability Bounded:** Operates strictly with explicit tokens (`&FsReadCap`, `&EnvCap`, `&McpCap`). Physical absence of ambient disk/net leakage.
 * **Negative-Trust Architecture:** Strict input validation and operational limits.
 * **Hermetic Binary:** Standalone zero-dependency executable.
 

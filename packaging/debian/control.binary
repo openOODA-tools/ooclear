@@ -1,0 +1,11 @@
+Package: ooclear
+Version: 0.2.0-1
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: openOODA-tools <ops@openooda.org>
+Depends: libc6
+Description: BUFFER PURGER
+ High-performance screen clearing and scrollback purge with VT100/ANSI compliance.
+ Capability-bounded openOODA utility with zero ambient authority,
+ terminal capability detection, and native Model Context Protocol (MCP) surface.

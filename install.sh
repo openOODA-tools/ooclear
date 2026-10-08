@@ -4,7 +4,7 @@
 # "High-performance screen clearing and scrollback purge with VT100/ANSI compliance."
 #
 # Usage:
-#   curl -fsSL https://openooda-tooclear.github.io/ooclear/install.sh | bash
+#   curl -fsSL https://openooda-tools.github.io/ooclear/install.sh | bash
 #
 # Options:
 #   --prefix <dir>       Installation directory (default: /usr/local/bin or ~/.local/bin)
@@ -18,10 +18,10 @@
 
 set -eu
 
-REPO="openOODA-tooclear/ooclear"
+REPO="openOODA-tools/ooclear"
 GITHUB_URL="https://github.com/${REPO}"
-VERSION_PIN="v0.1.0"
-RAW_VERSION="0.1.0"
+VERSION_PIN="v0.2.0"
+RAW_VERSION="0.2.0"
 
 if [ -t 1 ] && [ "${NO_COLOR:-}" = "" ] && [ "${TERM:-dumb}" != "dumb" ]; then
     CYAN="\033[38;5;51m"

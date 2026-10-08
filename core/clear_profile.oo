@@ -1,0 +1,80 @@
+// # ooclear Terminal Profile and Sequence Resolution
+//
+// Logline: Ingests terminal environment specifications and resolves VT100/ANSI buffer escape sequences.
+//
+// Setup: Demands explicit EnvCap to query host terminal parameters with zero ambient authority.
+//
+// Beats:
+//   1. Resolve terminal profile based on TERM environment or user override.
+//   2. Formulate escape sequence actions for screen, scrollback, or reset operations.
+//   3. Provide display escaping for raw terminal control sequences.
+//   4. Evaluate terminal capabilities and produce environment audit record.
+
+import "std/fs/process/env.oo";
+import "core/clear_types.oo";
+
+pub fn env_lookup(env: &EnvCap, name: String) -> String {
+    let r: Result[String, String] = env_get(env, name);
+    return match r { Ok(s) => s, Err(_) => "" };
+}
+
+pub fn get_terminal_profile(raw_term: String) -> TermProfile {
+    let term: String = str_trim(raw_term);
+    if term == "dumb" {
+        return make_term_profile("dumb", false, false, false, "", "", "", "");
+    }
+    if term == "vt100" {
+        return make_term_profile("vt100", true, false, true, "\x1b[H", "\x1b[2J", "", "\x1bc");
+    }
+    let name: String = if chars_len(term) > 0 { term } else { "xterm-256color" };
+    return make_term_profile(name, true, true, true, "\x1b[H", "\x1b[2J", "\x1b[3J", "\x1bc");
+}
+
+pub fn resolve_clear_action(
+    profile: TermProfile,
+    keep_scrollback: Bool,
+    scrollback_only: Bool,
+    hard_reset: Bool,
+    soft_reset: Bool
+) -> ClearAction {
+    if !profile.supports_ansi {
+        return make_clear_action("DUMB_FALLBACK", "FF", "\u000c", "\\f", 1, "Form-feed fallback for dumb terminal");
+    }
+
+    if hard_reset {
+        let raw: String = profile.reset_state;
+        return make_clear_action("HARD_RESET", "RIS", raw, "\\x1bc", chars_len(raw), "Reset Initial State (RIS) terminal hardware reset");
+    }
+
+    if soft_reset {
+        let raw: String = "\x1b[!p" + profile.cursor_home + profile.clear_screen;
+        return make_clear_action("SOFT_RESET", "DECSTR", raw, "\\x1b[!p\\x1b[H\\x1b[2J", chars_len(raw), "Soft Terminal Reset (DECSTR) and clear");
+    }
+
+    if scrollback_only {
+        let raw: String = profile.purge_scrollback;
+        return make_clear_action("SCROLLBACK_ONLY", "ED3", raw, "\\x1b[3J", chars_len(raw), "Purge scrollback history buffer only");
+    }
+
+    if keep_scrollback || !profile.supports_scrollback {
+        let raw: String = profile.cursor_home + profile.clear_screen;
+        return make_clear_action("SCREEN_ONLY", "ED2+CUP", raw, "\\x1b[H\\x1b[2J", chars_len(raw), "Clear visible display and home cursor (keep scrollback)");
+    }
+
+    let raw: String = profile.cursor_home + profile.clear_screen + profile.purge_scrollback;
+    return make_clear_action("SCREEN_AND_SCROLLBACK", "ED2+ED3+CUP", raw, "\\x1b[H\\x1b[2J\\x1b[3J", chars_len(raw), "Clear screen, home cursor, and purge scrollback buffer");
+}
+
+pub fn audit_terminal_env(env: &EnvCap, term_override: String) -> TermAudit {
+    let term_env: String = env_lookup(env, "TERM");
+    let colorterm_env: String = env_lookup(env, "COLORTERM");
+    let active_term: String = if chars_len(term_override) > 0 { term_override } else if chars_len(term_env) > 0 { term_env } else { "xterm-256color" };
+    let prof: TermProfile = get_terminal_profile(active_term);
+    let color_sup: Bool = (chars_len(colorterm_env) > 0 || str_contains(active_term, "color") || str_contains(active_term, "256"));
+    let rec_mode: String = if prof.supports_scrollback { "SCREEN_AND_SCROLLBACK" } else if prof.supports_ansi { "SCREEN_ONLY" } else { "DUMB_FALLBACK" };
+    let summary: String = "Terminal '" + active_term + "' (ANSI: " + (if prof.supports_ansi { "yes" } else { "no" }) + ", Scrollback: " + (if prof.supports_scrollback { "yes" } else { "no" }) + ")";
+
+    return make_term_audit(
+        term_env, colorterm_env, active_term, prof.supports_scrollback, color_sup, rec_mode, summary
+    );
+}

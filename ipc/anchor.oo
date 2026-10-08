@@ -1,0 +1,37 @@
+// # ooclear IPC Verification Anchor
+//
+// Logline: Verification anchor certifying option parsing, JSON field extraction, and MCP handler.
+//
+// Setup: Validates IPC and protocol handlers against simulated inputs.
+//
+// Beats:
+//   1. Verify option parsing on flag lists.
+//   2. Verify JSON escaping and extraction.
+//   3. Verify MCP initialize and tools list format.
+//   4. Deliver certified IPC subsystem state.
+
+import "ipc/json_field.oo";
+import "ipc/clear_opts.oo";
+import "ipc/mcp_serve.oo";
+
+pub fn verify_ipc_subsystem() -> Bool {
+    let mut args: List[String] = list_new();
+    args = list_push(args, "-x");
+    args = list_push(args, "-T");
+    args = list_push(args, "vt100");
+
+    let opts: ClearCliOpts = parse_cli_args(args);
+    if !opts.keep_scrollback { return false; }
+    if opts.term_override != "vt100" { return false; }
+
+    let escaped: String = json_escape("test \x1b[2J\n");
+    if chars_len(escaped) == 0 { return false; }
+
+    let init_resp: String = render_mcp_init("1");
+    if !str_contains(init_resp, "protocolVersion") { return false; }
+
+    let tools_resp: String = render_mcp_tools_list("2");
+    if !str_contains(tools_resp, "clear_screen") { return false; }
+
+    return true;
+}

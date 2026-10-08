@@ -1,7 +1,7 @@
 # Maintainer: openOODA-tools <ops@openooda.org>
 pkgname=ooclear-bin
 _pkgname=ooclear
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="High-performance screen clearing and scrollback purge with VT100/ANSI compliance."
 arch=('x86_64')
